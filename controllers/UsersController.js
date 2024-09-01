@@ -12,7 +12,7 @@ class UsersController {
 
     try {
       const userId = await redisClient.get(token);
-      console.log('User ID from Redis:', userId); // Debugging log
+      // console.log('User ID from Redis:', userId); // Debugging log
 
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
@@ -20,7 +20,7 @@ class UsersController {
 
       const { db } = dbClient;
       const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
-      console.log('User from MongoDB:', user); // Debugging log
+      // console.log('User from MongoDB:', user); // Debugging log
 
       if (!user) {
         return res.status(401).json({ error: 'Unauthorized' });
