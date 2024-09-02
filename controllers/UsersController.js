@@ -11,7 +11,7 @@ class UsersController {
     }
 
     try {
-      const userId = await redisClient.get(token);
+      const userId = await redisClient.get(`auth_${token}`);
       // console.log('User ID from Redis:', userId); // Debugging log
 
       if (!userId) {
