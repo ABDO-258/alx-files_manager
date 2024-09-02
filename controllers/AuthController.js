@@ -28,7 +28,7 @@ class AuthController {
       }
 
       const token = uuidv4();
-      await redisClient.set(token, user._id.toString(), 24 * 60 * 60); // 24 hours
+      await redisClient.set(`auth_${token}`, user._id.toString(), 24 * 60 * 60); // 24 hours
 
       return res.status(200).json({ token });
     } catch (err) {
@@ -44,13 +44,13 @@ class AuthController {
     }
 
     try {
-      const userId = await redisClient.get(token);
+      const userId = await redisClient.get(`auth_${token}`);
 
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      await redisClient.del(token);
+      await redisClient.del(`auth_${token}`);
       return res.status(204).end();
     } catch (err) {
       console.error('Error during disconnect:', err);
