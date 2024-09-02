@@ -160,7 +160,7 @@ class FilesController {
       query.parentId = '0';
     }
 
-    //debugging
+    // debugging
     console.log(`Querying files with parentId: ${parentId} and userId: ${userId}`);
 
     const files = await dbClient.db.collection('files').find(query)
@@ -168,7 +168,7 @@ class FilesController {
       .limit(limit)
       .toArray();
 
-    const formattedFiles = files.map(file => ({
+    const formattedFiles = files.map((file) => ({
       id: file._id,
       userId: file.userId,
       name: file.name,
@@ -176,7 +176,7 @@ class FilesController {
       isPublic: file.isPublic,
       parentId: file.parentId,
     }));
-    // debugging 
+    // debugging
     console.log(`Found ${formattedFiles.length} files`);
 
     return res.status(200).json(formattedFiles);
