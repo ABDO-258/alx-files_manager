@@ -96,6 +96,91 @@ class FilesController {
       parentId,
     });
   }
+
+  static async getShow(req, res) {
+    const token = req.headers['x-token'];
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const userId = await redisClient.get(token);
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { id } = req.params;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    // debugging
+    console.log(`Looking for file with ID: ${id} and userId: ${userId}`);
+
+    const file = await dbClient.db.collection('files').findOne({
+      _id: new ObjectId(id),
+      userId: new ObjectId(userId),
+    });
+
+    if (!file) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    return res.status(200).json({
+      id: file._id,
+      userId: file.userId,
+      name: file.name,
+      type: file.type,
+      isPublic: file.isPublic,
+      parentId: file.parentId,
+    });
+  }
+
+  static async getIndex(req, res) {
+    const token = req.headers['x-token'];
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const userId = await redisClient.get(token);
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { parentId = 0, page = 0 } = req.query;
+    const limit = 20;
+    const skip = page * limit;
+
+    const query = {
+      userId: new ObjectId(userId),
+    };
+
+    if (parentId !== '0') {
+      query.parentId = new ObjectId(parentId);
+    } else {
+      query.parentId = '0';
+    }
+
+    //debugging
+    console.log(`Querying files with parentId: ${parentId} and userId: ${userId}`);
+
+    const files = await dbClient.db.collection('files').find(query)
+      .skip(skip)
+      .limit(limit)
+      .toArray();
+
+    const formattedFiles = files.map(file => ({
+      id: file._id,
+      userId: file.userId,
+      name: file.name,
+      type: file.type,
+      isPublic: file.isPublic,
+      parentId: file.parentId,
+    }));
+    // debugging 
+    console.log(`Found ${formattedFiles.length} files`);
+
+    return res.status(200).json(formattedFiles);
+  }
 }
 
 export default FilesController;
