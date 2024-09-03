@@ -1,10 +1,13 @@
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
+import mime from 'mime-types';
+import Bull from 'bull';
 import { ObjectId } from 'mongodb';
 import redisClient from '../utils/redis';
 import dbClient from '../utils/db';
-import mime from 'mime-types';
+
+const fileQueue = new Bull('fileQueue');
 
 class FilesController {
   static async postUpload(req, res) {
@@ -38,7 +41,7 @@ class FilesController {
       return res.status(400).json({ error: 'Missing data' });
     }
 
-    let filePath = null;
+    // let filePath = null;
     const { db } = dbClient;
 
     // Validate parentId if provided
@@ -82,11 +85,17 @@ class FilesController {
       fs.mkdirSync(FOLDER_PATH, { recursive: true });
     }
 
-    filePath = path.join(FOLDER_PATH, fileName);
+    const filePath = path.join(FOLDER_PATH, fileName);
     fs.writeFileSync(filePath, fileData);
 
     newFile.localPath = filePath;
+
     const result = await db.collection('files').insertOne(newFile);
+
+    if (type === 'image') {
+      // Add job to the Bull queue for image processing
+      await fileQueue.add({ userId, fileId: result.insertedId.toString() });
+    }
 
     return res.status(201).json({
       id: result.insertedId,
@@ -269,6 +278,7 @@ class FilesController {
 
   static async getFile(req, res) {
     const { id } = req.params;
+    const { size } = req.query;
 
     if (!ObjectId.isValid(id)) {
       return res.status(404).json({ error: 'Not found' });
@@ -293,7 +303,10 @@ class FilesController {
       return res.status(404).json({ error: 'Not found' });
     }
 
-    const filePath = file.localPath;
+    let filePath = file.localPath;
+    if (size) {
+      filePath = `${file.localPath}_${size}`;
+    }
     if (!filePath || !fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'Not found' });
     }
@@ -302,13 +315,25 @@ class FilesController {
     const mimeType = mime.lookup(file.name);
 
     // Read the file content and return it with the correct MIME type
-    fs.readFile(filePath, (err, data) => {
+    return fs.readFile(filePath, (err, data) => {
       if (err) {
         return res.status(500).json({ error: 'Could not retrieve file content' });
       }
       res.setHeader('Content-Type', mimeType || 'application/octet-stream');
-      res.send(data);
+      return res.send(data);
     });
+  }
+
+  // this only for test
+  static async getAllFiles(req, res) {
+    const { db } = dbClient;
+
+    try {
+      const files = await db.collection('files').find().toArray();
+      res.status(200).json(files);
+    } catch (err) {
+      res.status(500).json({ error: 'Cannot retrieve files' });
+    }
   }
 }
 
