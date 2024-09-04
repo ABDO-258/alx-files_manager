@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { ObjectId } from 'mongodb';
 import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
+import userQueue from '../utils/bullQueue';
 
 class UsersController {
   static async getMe(req, res) {
@@ -63,6 +64,9 @@ class UsersController {
       });
 
       const newUser = result.ops[0];
+      // Add a job to the queue to send a welcome email
+      await userQueue.add({ userId: newUser._id });
+
       return res.status(201).json({ id: newUser._id, email: newUser.email });
     } catch (err) {
       console.error('Error creating user:', err);
